@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Admin Login | KK TEXMART</title>
+  
+  <link rel="icon" type="image/jpeg" href="https://res.cloudinary.com/dwgvvzbvn/image/upload/v1790933307/fbvhveeektcotj2yg5gi.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@600;700&display=swap" rel="stylesheet">
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- EmailJS SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100 flex items-center justify-center p-4 selection:bg-zinc-800">
+
+  <!-- মেইন কার্ড -->
+  <div class="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+    
+    <!-- ব্যাকগ্রাউন্ড গ্লো ইফেক্ট -->
+    <div class="absolute -top-24 -right-24 w-48 h-48 bg-zinc-700/20 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-24 -left-24 w-48 h-48 bg-zinc-700/20 rounded-full blur-3xl pointer-events-none"></div>
+
+    <div class="text-center mb-6 relative">
+      <div class="w-14 h-14 bg-zinc-800 border border-zinc-700 rounded-2xl mx-auto flex items-center justify-center overflow-hidden mb-3 shadow-md">
+        <img src="https://res.cloudinary.com/dwgvvzbvn/image/upload/v1790933307/fbvhveeektcotj2yg5gi.jpg" alt="Logo" class="w-full h-full object-cover">
+      </div>
+      <h1 class="text-lg font-black text-white tracking-tight uppercase">Admin Console</h1>
+      <p class="text-xs text-zinc-400 font-medium">Authentication Portal</p>
+    </div>
+
+    <!-- ১. লগইন ফর্ম ভিউ -->
+    <div id="view-login" class="space-y-4">
+      <div>
+        <label class="block text-xs font-bold text-zinc-300 mb-1.5">Username</label>
+        <div class="relative">
+          <i data-lucide="user" class="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+          <input type="text" id="loginUsername" value="kktexmart" readonly class="w-full bg-zinc-950/60 border border-zinc-800 focus:border-zinc-500 rounded-xl pl-10 pr-3.5 py-3 text-xs text-zinc-200 outline-none font-mono cursor-not-allowed">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-zinc-300 mb-1.5">Password</label>
+        <div class="relative">
+          <i data-lucide="lock" class="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+          <input type="password" id="loginPassword" placeholder="••••••••" class="w-full bg-zinc-950/60 border border-zinc-800 focus:border-zinc-500 rounded-xl pl-10 pr-10 py-3 text-xs text-zinc-100 outline-none font-medium transition">
+          <button type="button" onclick="togglePassView('loginPassword', this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
+            <i data-lucide="eye" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="button" onclick="switchToForgotView()" class="text-xs font-bold text-zinc-400 hover:text-white transition">
+          Forgot Password?
+        </button>
+      </div>
+
+      <button type="button" onclick="handleLoginSubmit()" id="btnLoginSubmit" class="w-full bg-white hover:bg-zinc-200 text-zinc-950 py-3.5 rounded-xl font-extrabold text-xs uppercase tracking-wider transition active:scale-95 shadow-md flex items-center justify-center gap-2">
+        <span>Log In</span>
+        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+      </button>
+    </div>
+
+    <!-- ২. ওটিপি ও পাসওয়ার্ড রিসেট ভিউ -->
+    <div id="view-reset" class="space-y-4 hidden">
+      <div class="p-3 bg-zinc-950/60 border border-zinc-800 rounded-xl text-center">
+        <span class="text-[11px] text-zinc-400 block font-medium">OTP will be sent to:</span>
+        <span class="text-xs font-mono font-bold text-white">kktexmart1@gmail.com</span>
+      </div>
+
+      <!-- ধাপ ১: ওটিপি রিকোয়েস্ট -->
+      <div id="step-send-otp">
+        <button type="button" onclick="sendOtpEmail()" id="btnSendOtp" class="w-full bg-white hover:bg-zinc-200 text-zinc-950 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition active:scale-95 flex items-center justify-center gap-2">
+          <i data-lucide="mail" class="w-4 h-4"></i>
+          <span>Send Verification OTP</span>
+        </button>
+      </div>
+
+      <!-- ধাপ ২: ওটিপি কোড ও নতুন পাসওয়ার্ড ইনপুট -->
+      <div id="step-verify-otp" class="space-y-3.5 hidden">
+        <div>
+          <label class="block text-xs font-bold text-zinc-300 mb-1">Enter 6-Digit OTP</label>
+          <input type="text" id="inputOtpCode" maxlength="6" placeholder="123456" class="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-400 rounded-xl p-3 text-center text-lg font-mono font-bold tracking-widest text-white outline-none">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-zinc-300 mb-1">Set New Password</label>
+          <input type="password" id="inputNewPass" placeholder="Enter at least 6 characters" class="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-400 rounded-xl p-3 text-xs text-white outline-none font-medium">
+        </div>
+
+        <button type="button" onclick="verifyAndSaveNewPassword()" id="btnVerifySave" class="w-full bg-emerald-500 hover:bg-emerald-600 text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition active:scale-95 flex items-center justify-center gap-2">
+          <i data-lucide="check" class="w-4 h-4"></i>
+          <span>Save & Login</span>
+        </button>
+      </div>
+
+      <div class="pt-2 text-center">
+        <button type="button" onclick="switchToLoginView()" class="text-xs text-zinc-500 hover:text-zinc-300 font-semibold transition">
+          ← Back to Login
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ফায়ারবেস কনফিগারেশন
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_HBGuQSh_GzqrHqHbgdaoBikLZsK3Qqs",
+      authDomain: "new-all-f99f7.firebaseapp.com",
+      databaseURL: "https://new-all-f99f7-default-rtdb.firebaseio.com",
+      projectId: "new-all-f99f7",
+      storageBucket: "new-all-f99f7.firebasestorage.app",
+      messagingSenderId: "1069748173900",
+      appId: "1:1069748173900:web:158d6336c0f4628133c8e9"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // EmailJS কনফিগারেশন
+    const EMAILJS_CONFIG = {
+      serviceId: "service_ymk6s7e",
+      templateId: "template_m9gbykx",
+      publicKey: "Qqc7rdv0EQ9TFPEwT",
+      targetEmail: "kktexmart1@gmail.com"
+    };
+
+    try {
+      emailjs.init(EMAILJS_CONFIG.publicKey);
+    } catch (e) {}
+
+    function getSubdomainShop() {
+      const host = window.location.hostname;
+      const parts = host.split('.');
+      if (parts.length > 2 && parts[0] !== 'www') return parts[0].toLowerCase();
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get('shop') || 'kktexmart';
+    }
+
+    const currentShop = getSubdomainShop();
+    const AUTH_SESSION_KEY = `kk_admin_session_${currentShop}`;
+    const AUTH_DB_PATH = `stores/${currentShop}/security_auth`;
+
+    // চেক করা ইউজার অলরেডি লগইন করা আছে কিনা (একবার লগইন থাকলে বারবার লগইন লাগবে না)
+    (function checkExistingSession() {
+      const savedSession = localStorage.getItem(AUTH_SESSION_KEY);
+      if (savedSession && savedSession.startsWith('active_auth_token_')) {
+        window.location.replace(`admin.html${window.location.search}`);
+      }
+    })();
+
+    let generatedOtp = null;
+    let otpExpiresAt = null;
+
+    function switchToForgotView() {
+      document.getElementById('view-login').classList.add('hidden');
+      document.getElementById('view-reset').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function switchToLoginView() {
+      document.getElementById('view-reset').classList.add('hidden');
+      document.getElementById('view-login').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function togglePassView(inputId, btn) {
+      const el = document.getElementById(inputId);
+      const isPass = el.type === 'password';
+      el.type = isPass ? 'text' : 'password';
+    }
+
+    // লগইন সাবমিশন
+    async function handleLoginSubmit() {
+      const pass = document.getElementById('loginPassword').value.trim();
+      const btn = document.getElementById('btnLoginSubmit');
+
+      if (!pass) {
+        Swal.fire({
+          icon: 'info',
+          title: 'পাসওয়ার্ড প্রয়োজন',
+          text: 'যদি কোনো পাসওয়ার্ড সেট করা না থাকে, অনুগ্রহ করে "Forgot Password"-এ ক্লিক করে নতুন পাসওয়ার্ড সেট করুন।'
+        });
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<div class="w-4 h-4 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin"></div> <span>Checking...</span>`;
+
+      try {
+        const snap = await db.ref(AUTH_DB_PATH).once('value');
+        const authData = snap.val();
+
+        if (!authData || !authData.password) {
+          btn.disabled = false;
+          btn.innerHTML = `<span>Log In</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+          lucide.createIcons();
+          Swal.fire({
+            icon: 'warning',
+            title: 'পাসওয়ার্ড সেট করা নেই',
+            text: 'আপনার অ্যাডমিন অ্যাকাউন্টে কোনো পাসওয়ার্ড পাওয়া যায়নি। নিচে "Forgot Password" দিয়ে ওটিপি নিয়ে পাসওয়ার্ড সেট করুন।'
+          });
+          return;
+        }
+
+        if (authData.password === pass) {
+          // সফল লগইন - সেশন টোকেন সেভ (যাতে বারবার লগইন না করতে হয়)
+          const sessionToken = `active_auth_token_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+          localStorage.setItem(AUTH_SESSION_KEY, sessionToken);
+
+          Swal.fire({
+            icon: 'success',
+            title: 'লগইন সফল!',
+            timer: 1000,
+            showConfirmButton: false
+          }).then(() => {
+            window.location.replace(`admin.html${window.location.search}`);
+          });
+        } else {
+          throw new Error('ভুল পাসওয়ার্ড দিয়েছেন!');
+        }
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = `<span>Log In</span><i data-lucide="arrow-right" class="w-4 h-4"></i>`;
+        lucide.createIcons();
+        Swal.fire({ icon: 'error', title: 'লগইন ব্যর্থ', text: err.message });
+      }
+    }
+
+    // ওটিপি ইমেইল পাঠানো
+    async function sendOtpEmail() {
+      const btn = document.getElementById('btnSendOtp');
+      btn.disabled = true;
+      btn.innerHTML = `<div class="w-4 h-4 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin"></div> <span>Sending OTP...</span>`;
+
+      // ৬ ডিজিটের ওটিপি জেনারেট
+      generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      otpExpiresAt = Date.now() + (10 * 60 * 1000); // ১০ মিনিট মেয়াদ
+
+      const templateParams = {
+        to_name: "KK TEXMART Admin",
+        to_email: EMAILJS_CONFIG.targetEmail,
+        otp_code: generatedOtp
+      };
+
+      try {
+        await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, templateParams);
+        btn.classList.add('hidden');
+        document.getElementById('step-verify-otp').classList.remove('hidden');
+        Swal.fire({
+          icon: 'success',
+          title: 'OTP Sent!',
+          text: 'kktexmart1@gmail.com ঠিকানায় ওটিপি পাঠানো হয়েছে। অনুগ্রহ করে ইনবক্স বা স্প্যাম ফোল্ডার চেক করুন।'
+        });
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="mail" class="w-4 h-4"></i> <span>Send Verification OTP</span>`;
+        lucide.createIcons();
+        Swal.fire({ icon: 'error', title: 'Failed to send OTP', text: err.text || err.message });
+      }
+    }
+
+    // ওটিপি ভেরিফাই এবং নতুন পাসওয়ার্ড সেভ
+    async function verifyAndSaveNewPassword() {
+      const userOtp = document.getElementById('inputOtpCode').value.trim();
+      const newPass = document.getElementById('inputNewPass').value.trim();
+
+      if (Date.now() > otpExpiresAt) {
+        Swal.fire({ icon: 'error', title: 'OTP Expired', text: 'ওটিপির মেয়াদ শেষ হয়ে গেছে। পুনরায় ওটিপি পাঠান।' });
+        return;
+      }
+
+      if (userOtp !== generatedOtp) {
+        Swal.fire({ icon: 'error', title: 'ভুল OTP', text: 'সঠিক ৬ ডিজিটের ভেরিফিকেশন কোডটি দিন।' });
+        return;
+      }
+
+      if (newPass.length < 5) {
+        Swal.fire({ icon: 'warning', title: 'দুর্বল পাসওয়ার্ড', text: 'কমপক্ষে ৫ বা ৬ অক্ষরের পাসওয়ার্ড দিন।' });
+        return;
+      }
+
+      const btn = document.getElementById('btnVerifySave');
+      btn.disabled = true;
+      btn.innerHTML = `<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div> <span>Saving...</span>`;
+
+      try {
+        await db.ref(AUTH_DB_PATH).set({
+          username: 'kktexmart',
+          password: newPass,
+          updatedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        // সফল হলে সরাসরি লগইন সেশন সেট
+        const sessionToken = `active_auth_token_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+        localStorage.setItem(AUTH_SESSION_KEY, sessionToken);
+
+        Swal.fire({
+          icon: 'success',
+          title: 'পাসওয়ার্ড সেট হয়েছে!',
+          text: 'সফলভাবে লগইন করা হচ্ছে...',
+          timer: 1500,
+          showConfirmButton: false
+        }).then(() => {
+          window.location.replace(`admin.html${window.location.search}`);
+        });
+
+      } catch (err) {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> <span>Save & Login</span>`;
+        lucide.createIcons();
+        Swal.fire({ icon: 'error', title: 'Error', text: err.message });
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
