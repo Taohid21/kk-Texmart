@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Store Intelligence & Analytics</title>
+
+  <!-- Typography & Styling -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Inter"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #09090b;
+      color: #f4f4f5;
+      letter-spacing: -0.015em;
+      -webkit-font-smoothing: antialiased;
+    }
+    .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #27272a; border-radius: 999px; }
+  </style>
+</head>
+<body class="min-h-screen selection:bg-white selection:text-black antialiased p-3 sm:p-6 lg:p-8 space-y-6">
+
+  <!-- ================= TOP HEADER ================= -->
+  <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-5">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-white shrink-0 shadow-inner">
+        <i data-lucide="bar-chart-2" class="w-5 h-5"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-base sm:text-lg font-black tracking-tight text-white uppercase" id="storeNameText">Store Analytics</h1>
+          <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800/50">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Live Open
+          </span>
+        </div>
+        <p class="text-xs text-zinc-500 font-medium">Real-time revenue, top spenders, inventory & orders intelligence</p>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="flex items-center gap-2.5">
+      <button onclick="refreshData()" class="px-3.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-bold text-zinc-300 transition flex items-center gap-2">
+        <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+        <span>Reload</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= TIME-PERIOD KPI CARDS ================= -->
+  <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <!-- Today -->
+    <div class="bg-zinc-900/60 border border-zinc-800/90 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+      <div class="flex items-center justify-between text-zinc-400">
+        <span class="text-[11px] font-bold uppercase tracking-wider">Today's Sales</span>
+        <span class="p-1 rounded-lg bg-zinc-800 text-zinc-300"><i data-lucide="calendar" class="w-3.5 h-3.5"></i></span>
+      </div>
+      <div class="mt-3">
+        <div class="text-xl sm:text-2xl font-black font-mono tracking-tight text-white" id="statTodayRevenue">৳0</div>
+        <div class="flex items-center justify-between text-[11px] text-zinc-500 mt-1 font-medium">
+          <span>Orders: <b class="text-zinc-300 font-mono" id="statTodayOrders">0</b></span>
+          <span>Delivered: <b class="text-emerald-400 font-mono" id="statTodayDelivered">0</b></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- This Week -->
+    <div class="bg-zinc-900/60 border border-zinc-800/90 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+      <div class="flex items-center justify-between text-zinc-400">
+        <span class="text-[11px] font-bold uppercase tracking-wider">This Week (7 Days)</span>
+        <span class="p-1 rounded-lg bg-zinc-800 text-zinc-300"><i data-lucide="trending-up" class="w-3.5 h-3.5"></i></span>
+      </div>
+      <div class="mt-3">
+        <div class="text-xl sm:text-2xl font-black font-mono tracking-tight text-white" id="statWeekRevenue">৳0</div>
+        <div class="flex items-center justify-between text-[11px] text-zinc-500 mt-1 font-medium">
+          <span>Orders: <b class="text-zinc-300 font-mono" id="statWeekOrders">0</b></span>
+          <span>AOV: <b class="text-zinc-300 font-mono" id="statWeekAOV">৳0</b></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- This Month -->
+    <div class="bg-zinc-900/60 border border-zinc-800/90 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+      <div class="flex items-center justify-between text-zinc-400">
+        <span class="text-[11px] font-bold uppercase tracking-wider">This Month</span>
+        <span class="p-1 rounded-lg bg-zinc-800 text-zinc-300"><i data-lucide="pie-chart" class="w-3.5 h-3.5"></i></span>
+      </div>
+      <div class="mt-3">
+        <div class="text-xl sm:text-2xl font-black font-mono tracking-tight text-white" id="statMonthRevenue">৳0</div>
+        <div class="flex items-center justify-between text-[11px] text-zinc-500 mt-1 font-medium">
+          <span>Orders: <b class="text-zinc-300 font-mono" id="statMonthOrders">0</b></span>
+          <span>COD Due: <b class="text-amber-400 font-mono" id="statMonthCod">৳0</b></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Total Catalog & Stock Status -->
+    <div class="bg-zinc-900/60 border border-zinc-800/90 rounded-2xl p-4 sm:p-5 flex flex-col justify-between">
+      <div class="flex items-center justify-between text-zinc-400">
+        <span class="text-[11px] font-bold uppercase tracking-wider">Total Inventory Stock</span>
+        <span class="p-1 rounded-lg bg-zinc-800 text-zinc-300"><i data-lucide="archive" class="w-3.5 h-3.5"></i></span>
+      </div>
+      <div class="mt-3">
+        <div class="text-xl sm:text-2xl font-black font-mono tracking-tight text-white" id="statTotalStock">0 Pcs</div>
+        <div class="flex items-center justify-between text-[11px] text-zinc-500 mt-1 font-medium">
+          <span>Items: <b class="text-zinc-300 font-mono" id="statTotalProducts">0</b></span>
+          <span>Low Stock: <b class="text-rose-400 font-mono" id="statLowStockCount">0</b></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= MAIN INTELLIGENCE GRID ================= -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- LEFT COLUMN: TOP PRODUCTS & INVENTORY CONTROL (7 COLS) -->
+    <div class="lg:col-span-7 space-y-6">
+
+      <!-- Top Selling Products -->
+      <section class="bg-zinc-900/60 border border-zinc-800/90 rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-400">Best Performing Products</h2>
+            <p class="text-[11px] text-zinc-500">Calculated based on actual units ordered</p>
+          </div>
+          <span class="text-[11px] font-mono text-zinc-400" id="totalSoldUnitsLabel">0 Total Units Sold</span>
+        </div>
+
+        <div id="topProductsList" class="space-y-2.5 max-h-[380px] overflow-y-auto custom-scroll pr-1">
+          <div class="py-12 text-center text-xs text-zinc-600">Calculating product sales...</div>
+        </div>
+      </section>
+
+      <!-- Live Stock Manager (+ / - Instant Update) -->
+      <section class="bg-zinc-900/60 border border-zinc-800/90 rounded-2xl p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-400">Inventory Management & Stock Balances</h2>
+            <p class="text-[11px] text-zinc-500">Instant + / - stock adjustment directly synced with store</p>
+          </div>
+          <div class="relative">
+            <input type="text" id="inventorySearch" oninput="renderStockTable()" placeholder="Search product..." class="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-zinc-500 w-full sm:w-48">
+          </div>
+        </div>
+
+        <div class="overflow-x-auto max-h-[440px] custom-scroll border border-zinc-800/80 rounded-xl">
+          <table class="w-full text-left text-xs text-zinc-400">
+            <thead class="bg-zinc-950 text-zinc-500 uppercase text-[10px] font-bold sticky top-0 border-b border-zinc-800">
+              <tr>
+                <th class="py-2.5 px-3">Item</th>
+                <th class="py-2.5 px-3 text-center">Unit Price</th>
+                <th class="py-2.5 px-3 text-center">Current Stock</th>
+                <th class="py-2.5 px-3 text-right">Quick Stock Action</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTableBody" class="divide-y divide-zinc-800/60 font-medium"></tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- RIGHT COLUMN: CUSTOMER INTELLIGENCE & IP PROFILES (5 COLS) -->
+    <div class="lg:col-span-5 space-y-6">
+
+      <!-- Top 10 Spenders -->
+      <section class="bg-zinc-900/60 border border-zinc-800/90 rounded-2xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-400">Top 10 High-Value Customers</h2>
+            <p class="text-[11px] text-zinc-500">Ranked by total lifetime spending</p>
+          </div>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-bold">Top 10</span>
+        </div>
+
+        <div id="topCustomersList" class="space-y-2.5">
+          <div class="py-10 text-center text-xs text-zinc-600">Analyzing customer records...</div>
+        </div>
+      </section>
+
+      <!-- All Customer Directory & IP Tracking -->
+      <section class="bg-zinc-900/60 border border-zinc-800/90 rounded-2xl p-5 space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-400">Customer Directory & IP Footprint</h2>
+            <p class="text-[11px] text-zinc-500">Grouped by phone & user IP to identify repeated orders</p>
+          </div>
+          <input type="text" id="customerSearch" oninput="renderCustomerDirectory()" placeholder="Filter phone / IP / name..." class="bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-zinc-600 outline-none focus:border-zinc-500 w-full sm:w-44">
+        </div>
+
+        <div id="allCustomersList" class="space-y-2 max-h-[460px] overflow-y-auto custom-scroll pr-1">
+          <div class="py-12 text-center text-xs text-zinc-600">Loading customers...</div>
+        </div>
+      </section>
+
+    </div>
+
+  </div>
+
+  <!-- FIREBASE LOGIC & ANALYTICS ENGINE -->
+  <script>
+    function getSubdomainShop() {
+      const host = window.location.hostname;
+      const parts = host.split('.');
+      if (parts.length > 2 && parts[0] !== 'www') return parts[0].toLowerCase();
+      return new URLSearchParams(window.location.search).get('shop') || 'kktexmart';
+    }
+
+    const currentShop = getSubdomainShop();
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_HBGuQSh_GzqrHqHbgdaoBikLZsK3Qqs",
+      authDomain: "new-all-f99f7.firebaseapp.com",
+      databaseURL: "https://new-all-f99f7-default-rtdb.firebaseio.com",
+      projectId: "new-all-f99f7",
+      storageBucket: "new-all-f99f7.firebasestorage.app",
+      messagingSenderId: "1069748173900",
+      appId: "1:1069748173900:web:158d6336c0f4628133c8e9"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const PATHS = {
+      orders: `stores/${currentShop}/orders`,
+      products: `stores/${currentShop}/products`,
+      settings: `stores/${currentShop}/settings`
+    };
+
+    let rawOrders = {};
+    let rawProducts = {};
+    let customerProfiles = {};
+    let productSalesMap = {};
+
+    // Initial listener for Settings
+    db.ref(PATHS.settings).on('value', snap => {
+      const s = snap.val() || {};
+      if (s.storeName) {
+        document.getElementById('storeNameText').innerText = `${s.storeName} Analytics`;
+        document.title = `${s.storeName} | Analytics`;
+      }
+    });
+
+    // Listen to Orders & Products
+    function initListeners() {
+      db.ref(PATHS.orders).on('value', snap => {
+        rawOrders = snap.val() || {};
+        computeAnalytics();
+      });
+
+      db.ref(PATHS.products).on('value', snap => {
+        rawProducts = snap.val() || {};
+        renderStockTable();
+        computeAnalytics();
+      });
+    }
+
+    function refreshData() {
+      db.ref(PATHS.orders).once('value', snap => { rawOrders = snap.val() || {}; computeAnalytics(); });
+      db.ref(PATHS.products).once('value', snap => { rawProducts = snap.val() || {}; renderStockTable(); computeAnalytics(); });
+    }
+
+    // MAIN COMPUTATION
+    function computeAnalytics() {
+      const orders = Object.entries(rawOrders);
+      const now = new Date();
+      const todayDateStr = now.toDateString();
+
+      const oneWeekAgo = now.getTime() - (7 * 24 * 60 * 60 * 1000);
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+
+      let todayRev = 0, todayOrdersCount = 0, todayDeliveredCount = 0;
+      let weekRev = 0, weekOrdersCount = 0;
+      let monthRev = 0, monthOrdersCount = 0, monthCod = 0;
+
+      customerProfiles = {};
+      productSalesMap = {};
+      let totalUnitsSoldAll = 0;
+
+      orders.forEach(([id, o]) => {
+        const oTime = o.createdAt ? Number(o.createdAt) : 0;
+        const oDate = oTime ? new Date(oTime) : null;
+        const total = Number(o.totalAmount) || 0;
+        const isDelivered = o.status === 'Delivered' || o.status === 'Completed';
+        const isCancelled = o.status === 'Cancelled';
+
+        if (!isCancelled) {
+          // Today Metrics
+          if (oDate && oDate.toDateString() === todayDateStr) {
+            todayRev += total;
+            todayOrdersCount++;
+            if (isDelivered) todayDeliveredCount++;
+          }
+
+          // Week Metrics
+          if (oTime >= oneWeekAgo) {
+            weekRev += total;
+            weekOrdersCount++;
+          }
+
+          // Month Metrics
+          if (oDate && oDate.getMonth() === currentMonth && oDate.getFullYear() === currentYear) {
+            monthRev += total;
+            monthOrdersCount++;
+            monthCod += Number(o.codAmount || total);
+          }
+
+          // Compute Product Sales Units
+          if (o.items && Array.isArray(o.items)) {
+            o.items.forEach(it => {
+              const pId = it.id || it.name;
+              const pName = it.name || 'Unnamed Product';
+              const qty = Number(it.quantity) || 1;
+              const pImg = it.imageUrl || '';
+
+              totalUnitsSoldAll += qty;
+
+              if (!productSalesMap[pName]) {
+                productSalesMap[pName] = { id: pId, name: pName, units: 0, revenue: 0, img: pImg };
+              }
+              productSalesMap[pName].units += qty;
+              productSalesMap[pName].revenue += (Number(it.price) || 0) * qty;
+            });
+          }
+
+          // Compute Customer Profiles (By Phone and IP)
+          const phone = (o.phone || 'Unknown').trim();
+          const ip = o.userIp || o.ip || 'No IP Captured';
+          const custKey = phone !== 'Unknown' ? phone : `ip_${ip}`;
+
+          if (!customerProfiles[custKey]) {
+            customerProfiles[custKey] = {
+              name: o.customerName || 'Guest Customer',
+              phone: phone,
+              ips: new Set(),
+              orderCount: 0,
+              totalSpent: 0,
+              lastOrderDate: oTime,
+              district: o.district || o.deliveryZone || 'Dhaka',
+              orders: []
+            };
+          }
+
+          if (ip !== 'No IP Captured') customerProfiles[custKey].ips.add(ip);
+          customerProfiles[custKey].orderCount++;
+          customerProfiles[custKey].totalSpent += total;
+          customerProfiles[custKey].orders.push({ id, amount: total, status: o.status || 'Pending', date: oTime });
+          if (oTime > customerProfiles[custKey].lastOrderDate) {
+            customerProfiles[custKey].lastOrderDate = oTime;
+          }
+        }
+      });
+
+      // Update Top KPIs
+      document.getElementById('statTodayRevenue').innerText = `৳${todayRev.toLocaleString()}`;
+      document.getElementById('statTodayOrders').innerText = todayOrdersCount;
+      document.getElementById('statTodayDelivered').innerText = todayDeliveredCount;
+
+      document.getElementById('statWeekRevenue').innerText = `৳${weekRev.toLocaleString()}`;
+      document.getElementById('statWeekOrders').innerText = weekOrdersCount;
+      document.getElementById('statWeekAOV').innerText = `৳${weekOrdersCount > 0 ? Math.round(weekRev / weekOrdersCount) : 0}`;
+
+      document.getElementById('statMonthRevenue').innerText = `৳${monthRev.toLocaleString()}`;
+      document.getElementById('statMonthOrders').innerText = monthOrdersCount;
+      document.getElementById('statMonthCod').innerText = `৳${monthCod.toLocaleString()}`;
+
+      document.getElementById('totalSoldUnitsLabel').innerText = `${totalUnitsSoldAll} Total Units Sold`;
+
+      renderTopProducts();
+      renderTopCustomers();
+      renderCustomerDirectory();
+    }
+
+    // 1. RENDER TOP PRODUCTS
+    function renderTopProducts() {
+      const container = document.getElementById('topProductsList');
+      if (!container) return;
+
+      const sortedProducts = Object.values(productSalesMap).sort((a, b) => b.units - a.units).slice(0, 8);
+
+      if (sortedProducts.length === 0) {
+        container.innerHTML = '<div class="py-8 text-center text-xs text-zinc-600">No product sales yet.</div>';
+        return;
+      }
+
+      container.innerHTML = sortedProducts.map((p, idx) => `
+        <div class="flex items-center justify-between p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/70 hover:border-zinc-700 transition">
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="w-6 h-6 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono text-[11px] font-bold text-zinc-400 shrink-0">#${idx + 1}</span>
+            <div class="w-10 h-10 rounded-lg bg-zinc-900 border border-zinc-800 overflow-hidden shrink-0">
+              <img src="${p.img || 'https://via.placeholder.com/100'}" class="w-full h-full object-cover">
+            </div>
+            <div class="min-w-0">
+              <h4 class="text-xs font-bold text-zinc-200 truncate">${p.name}</h4>
+              <span class="text-[10px] text-zinc-500 font-mono">Revenue: ৳${p.revenue.toLocaleString()}</span>
+            </div>
+          </div>
+          <div class="text-right shrink-0 pl-2">
+            <span class="text-xs font-extrabold font-mono text-emerald-400">${p.units} Sold</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // 2. RENDER INVENTORY TABLE WITH REAL-TIME (+ / -) CONTROLS
+    function renderStockTable() {
+      const tbody = document.getElementById('inventoryTableBody');
+      const query = (document.getElementById('inventorySearch')?.value || '').toLowerCase().trim();
+      if (!tbody) return;
+
+      const pEntries = Object.entries(rawProducts);
+      let totalStockCount = 0;
+      let lowStockCount = 0;
+
+      pEntries.forEach(([_, p]) => {
+        const s = Number(p.stock) || 0;
+        totalStockCount += s;
+        if (s <= 5) lowStockCount++;
+      });
+
+      document.getElementById('statTotalStock').innerText = `${totalStockCount} Pcs`;
+      document.getElementById('statTotalProducts').innerText = pEntries.length;
+      document.getElementById('statLowStockCount').innerText = lowStockCount;
+
+      const filtered = pEntries.filter(([_, p]) => {
+        if (!query) return true;
+        return (p.name || '').toLowerCase().includes(query) || (p.category || '').toLowerCase().includes(query);
+      });
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-xs text-zinc-600">No matching products in catalog</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(([id, p]) => {
+        const currentStock = Number(p.stock) || 0;
+        const isLow = currentStock <= 5;
+        const price = p.discountPrice || p.regularPrice || 0;
+
+        return `
+          <tr class="hover:bg-zinc-950/40 transition">
+            <td class="py-2.5 px-3">
+              <div class="flex items-center gap-2.5">
+                <img src="${p.imageUrl || 'https://via.placeholder.com/80'}" class="w-7 h-7 rounded-lg object-cover border border-zinc-800 shrink-0">
+                <div class="min-w-0">
+                  <span class="block text-xs font-bold text-zinc-200 truncate max-w-[180px] sm:max-w-xs">${p.name}</span>
+                  <span class="text-[10px] text-zinc-500 uppercase">${p.category || 'General'}</span>
+                </div>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 text-center font-mono text-zinc-300">৳${price}</td>
+            <td class="py-2.5 px-3 text-center font-mono">
+              <span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${isLow ? 'bg-rose-950 text-rose-400 border border-rose-800' : 'bg-zinc-900 text-zinc-300'}">
+                ${currentStock}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-right">
+              <div class="inline-flex items-center gap-1 bg-zinc-950 border border-zinc-800 p-0.5 rounded-xl">
+                <button onclick="adjustProductStock('${id}', -1)" class="w-6 h-6 flex items-center justify-center rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold transition">
+                  -
+                </button>
+                <button onclick="adjustProductStock('${id}', 1)" class="w-6 h-6 flex items-center justify-center rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold transition">
+                  +
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function adjustProductStock(prodId, change) {
+      const p = rawProducts[prodId];
+      if (!p) return;
+
+      const current = Number(p.stock) || 0;
+      const nextStock = Math.max(0, current + change);
+
+      db.ref(`${PATHS.products}/${prodId}`).update({
+        stock: nextStock
+      });
+    }
+
+    // 3. RENDER TOP 10 HIGH-VALUE CUSTOMERS
+    function renderTopCustomers() {
+      const container = document.getElementById('topCustomersList');
+      if (!container) return;
+
+      const sorted = Object.values(customerProfiles).sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 10);
+
+      if (sorted.length === 0) {
+        container.innerHTML = '<div class="py-8 text-center text-xs text-zinc-600">No customer profiles yet.</div>';
+        return;
+      }
+
+      container.innerHTML = sorted.map((c, idx) => {
+        const ipDisplay = Array.from(c.ips).join(', ') || 'No IP';
+        return `
+          <div class="flex items-center justify-between p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/70 hover:border-zinc-700 transition">
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="w-6 h-6 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center font-mono text-[11px] font-bold text-amber-400 shrink-0">#${idx + 1}</span>
+              <div class="min-w-0">
+                <h4 class="text-xs font-bold text-zinc-200 truncate">${c.name}</h4>
+                <div class="flex items-center gap-2 text-[10px] text-zinc-500 font-mono mt-0.5">
+                  <span class="text-zinc-400 font-bold">${c.phone}</span>
+                  <span>•</span>
+                  <span>${c.orderCount} Orders</span>
+                </div>
+              </div>
+            </div>
+            <div class="text-right shrink-0 pl-2">
+              <span class="text-xs font-black font-mono text-white">৳${c.totalSpent.toLocaleString()}</span>
+              <span class="block text-[9px] text-zinc-500 font-mono truncate max-w-[100px]" title="${ipDisplay}">${ipDisplay}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 4. RENDER ALL CUSTOMER DIRECTORY (FILTER BY NAME, PHONE, OR IP)
+    function renderCustomerDirectory() {
+      const container = document.getElementById('allCustomersList');
+      const query = (document.getElementById('customerSearch')?.value || '').toLowerCase().trim();
+      if (!container) return;
+
+      const list = Object.values(customerProfiles).filter(c => {
+        if (!query) return true;
+        const ipStr = Array.from(c.ips).join(' ').toLowerCase();
+        return c.name.toLowerCase().includes(query) || c.phone.toLowerCase().includes(query) || ipStr.includes(query);
+      }).sort((a, b) => b.lastOrderDate - a.lastOrderDate);
+
+      if (list.length === 0) {
+        container.innerHTML = '<div class="py-8 text-center text-xs text-zinc-600">No customer matches search.</div>';
+        return;
+      }
+
+      container.innerHTML = list.map(c => {
+        const dateStr = c.lastOrderDate ? new Date(c.lastOrderDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'N/A';
+        const ipArr = Array.from(c.ips);
+
+        return `
+          <div class="p-3 rounded-xl bg-zinc-950/60 border border-zinc-800/80 space-y-1.5 text-xs">
+            <div class="flex items-center justify-between font-bold text-zinc-200">
+              <span class="truncate">${c.name}</span>
+              <span class="font-mono text-emerald-400">৳${c.totalSpent.toLocaleString()}</span>
+            </div>
+            <div class="flex items-center justify-between text-[11px] text-zinc-400 font-mono">
+              <span>${c.phone}</span>
+              <span class="text-zinc-500">${c.orderCount} Total Orders</span>
+            </div>
+            <div class="pt-1.5 border-t border-zinc-900 flex items-center justify-between text-[10px] text-zinc-500">
+              <span class="font-mono bg-zinc-900 px-1.5 py-0.5 rounded text-zinc-400" title="Captured IP Address">
+                IP: ${ipArr.length > 0 ? ipArr.join(', ') : 'Not Captured'}
+              </span>
+              <span>Last: ${dateStr}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initListeners();
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
